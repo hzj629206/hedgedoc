@@ -65,7 +65,8 @@
          "secretAccessKey": "YOUR_S3_ACCESS_KEY",
          "region": "YOUR_S3_REGION" // example: ap-northeast-1
        },
-       "s3bucket": "YOUR_S3_BUCKET_NAME"
+       "s3bucket": "YOUR_S3_BUCKET_NAME",
+       "s3cdn": "YOUR_S3_CDN_URL"
      }
    }
    ```

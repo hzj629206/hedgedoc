@@ -120,6 +120,7 @@
           "region": "change this"
         },
         "s3bucket": "change this",
+        "s3cdn": "change this",
         "azure":
         {
           "connectionString": "change this",

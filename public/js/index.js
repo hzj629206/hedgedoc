@@ -4,6 +4,7 @@
    key, Dropbox, Visibility */
 
 import TurndownService from 'turndown'
+import { gfm } from 'turndown-plugin-gfm'
 import CodeMirror from '@hedgedoc/codemirror-5/lib/codemirror.js'
 
 import 'jquery-ui/ui/widgets/resizable'
@@ -1765,10 +1766,49 @@ $('#clipboardModal').on('shown.bs.modal', function () {
 $('#clipboardModalClear').click(function () {
   $('#clipboardModalContent').html('')
 })
+$('#clipboardModalContent').on('paste', function(e) {
+  const clipboardData = e.originalEvent.clipboardData || window.clipboardData;
+
+  if (clipboardData.types.includes('text/html')) {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    e.preventDefault();
+    $('#clipboardModalText').prop('checked', false);
+
+    let paste = clipboardData.getData('text/html');
+    selection.deleteFromDocument();
+    for (let ele of $(paste).get().reverse()) {
+      selection.getRangeAt(0).insertNode(ele);
+    }
+    //selection.getRangeAt(0).insertNode($('<div>' + paste + '</div>')[0]);
+    selection.collapseToEnd();
+    return;
+  }
+
+  if (clipboardData.types.includes('text/plain')) {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    e.preventDefault();
+    $('#clipboardModalText').prop('checked', true);
+
+    let paste = clipboardData.getData('text/plain');
+    selection.deleteFromDocument();
+    selection.getRangeAt(0).insertNode(document.createTextNode(paste));
+    selection.collapseToEnd();
+    return;
+  }
+})
 $('#clipboardModalConfirm').click(function () {
-  const data = $('#clipboardModalContent').text()
+  let data = null
+  if ($('#clipboardModalText').is(':checked')) { // plain text
+    data = $('#clipboardModalContent').text()
+  } else { // rich text
+    data = $('#clipboardModalContent').html()
+  }
   if (data) {
-    parseToEditor(data)
+    parseToEditor(data, $('#clipboardModalUpload').is(':checked'))
     $('#clipboardModal').modal('hide')
     $('#clipboardModalContent').html('')
   }
@@ -1968,12 +2008,90 @@ $('#snippetExportModalConfirm').click(function () {
   })
 })
 
-function parseToEditor (data) {
-  const turndownService = new TurndownService({
-    defaultReplacement: function (innerHTML, node) {
-      return node.isBlock ? '\n\n' + node.outerHTML + '\n\n' : node.outerHTML
+//**dataURL to blob**
+function dataURLtoBlob(dataurl) {
+  var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+      bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+  while(n--){
+      u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], {type:mime});
+}
+
+//**blob to dataURL**
+function blobToDataURL(blob, callback) {
+  var a = new FileReader();
+  a.onload = function(e) {callback(e.target.result);}
+  a.readAsDataURL(blob);
+}
+
+function cleanAttribute (attribute) {
+  return attribute ? attribute.replace(/(\n+\s*)+/g, '\n') : ''
+}
+
+function parseToEditor (data, uploadImg) {
+  const inlineAttach = new inlineAttachment(null, new inlineAttachment.editors.codemirror3(editor));
+
+  // Refer to https://github.com/notlmn/copy-as-markdown/blob/master/source/copy-as-markdown.js
+  let turndownService = new TurndownService({
+    headingStyle: 'atx',
+    hr: '---',
+    bulletListMarker: '-',
+    codeBlockStyle: 'fenced',
+    emDelimiter: '*',
+    preformattedCode: true,
+  })
+
+  turndownService.keep(['kbd', 'sup', 'sub']).use(gfm).addRule('uploadImage', {
+      filter: 'img',
+      replacement: function (content, node) {
+        var alt = cleanAttribute(node.getAttribute('alt'));
+        var src = node.getAttribute('src') || '';
+
+        if (src && uploadImg) {
+          var id = inlineAttach.ID();
+          const lastValue = inlineAttach.settings.progressText.replace(inlineAttach.filenameTag, id);
+
+          if (src.startsWith('data:')) {
+            var fileName = node.getAttribute('download')
+            if (!fileName) {
+              fileName = "image-" + Date.now() + "." + inlineAttach.settings.defaultExtension
+            }
+            var blob = dataURLtoBlob(src)
+            var file = new File([blob], fileName, {type: blob.type});
+            inlineAttach.uploadImg(file, id);
+          } else {
+            inlineAttach.uploadUrl(src, id);
+          }
+
+          // placeholder
+          return lastValue;
+        }
+
+        var title = cleanAttribute(node.getAttribute('title'));
+        var titlePart = title ? ' "' + title + '"' : '';
+        return src ? '![' + alt + ']' + '(' + src + titlePart + ')' : ''
+      }
+  }).addRule('listItem', { // Workaround to fix #7 until https://github.com/domchristie/turndown/issues/291 gets fixed
+    filter: 'li',
+    replacement: (content, node, options) => {
+      content = content
+        .replace(/^\n+/, '') // Remove leading newlines
+        .replace(/\n+$/, '\n') // Replace trailing newlines with just a single one
+        .replace(/\n/gm, '\n    '); // Indent
+
+      let prefix = options.bulletListMarker + ' ';
+      const parent = node.parentNode;
+      if (parent.nodeName === 'OL') {
+        const start = parent.getAttribute('start');
+        const index = Array.prototype.indexOf.call(parent.children, node);
+        prefix = (start ? Number(start) + index : index + 1) + '. ';
+      }
+
+      return (prefix + content + (node.nextSibling && !/\n$/.test(content) ? '\n' : ''));
     }
   })
+
   const parsed = turndownService.turndown(data)
   if (parsed) {
     replaceAll(parsed)

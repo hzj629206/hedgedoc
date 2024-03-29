@@ -56,9 +56,11 @@
                 <h4 class="modal-title" id="myModalLabel"><%= __('Import from clipboard') %></h4>
             </div>
             <div class="modal-body">
-                <div contenteditable data-ph="<%= __('Paste your markdown or webpage here...') %>" id="clipboardModalContent" style="overflow:auto;max-height:50vh"></div>
+                <div contenteditable data-ph="<%= __('Paste your markdown or webpage here...') %>" id="clipboardModalContent" style="overflow:auto;max-height:50vh;white-space:pre-wrap;"></div>
             </div>
             <div class="modal-footer">
+                <label class="pull-left checkbox-inline" for="clipboardModalUpload"><input type="checkbox" checked id="clipboardModalUpload" /> <%= __('Upload Images') %> </label>
+                <label class="pull-left checkbox-inline" for="clipboardModalText"><input type="checkbox" checked id="clipboardModalText" /> <%= __('Plain Text') %> </label>
                 <button type="button" class="btn btn-default" data-dismiss="modal"><%= __('Cancel') %></button>
                 <button type="button" class="btn btn-danger" id="clipboardModalClear"><%= __('Clear') %></button>
                 <button type="button" class="btn btn-primary" id="clipboardModalConfirm"><%= __('Import') %></button>

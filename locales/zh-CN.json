@@ -126,5 +126,7 @@
     "Protected - Only owner can edit (forbid guests)": "保护 - 仅所有者可编辑（禁止游客查看）",
     "Private - Only owner can view & edit": "私有 - 仅所有者可查看与编辑",
     "changed": "已修改",
-    "created": "已创建"
+    "created": "已创建",
+    "Upload Images": "上传图片",
+    "Plain Text": "纯文本"
 }

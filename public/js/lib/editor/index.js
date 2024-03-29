@@ -313,6 +313,8 @@ export default class Editor {
       e.dataTransfer = {}
       e.dataTransfer.files = files
       inlineAttach.onDrop(e)
+
+      uploadImage.children(':input').val('')
     })
   }
 

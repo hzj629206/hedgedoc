@@ -14,6 +14,7 @@
     this.editor = instance;
     this.filenameTag = '{filename}';
     this.lastValue = null;
+    this.ID = ID;
   };
 
   /**
@@ -208,6 +209,65 @@
     onFileUploaded: function() {}
   };
 
+  inlineAttachment.prototype.uploadUrl = function(url, id) {
+    // CORS issue
+    // const me = this
+    // const xhr = new XMLHttpRequest()
+    // xhr.open('GET', url, true)
+    // xhr.responseType = 'blob'
+    // xhr.onload = () => {
+    //   if (xhr.status === 200) {
+    //     const fileUrl = new URL(url)
+    //     const fileName = fileUrl.pathname.split("/").pop()
+    //     const file = new File([xhr.response], fileName)
+    //     me.uploadFile(file, id)
+    //   } else {
+    //     me.onFileUploadError(xhr, id);
+    //   }
+    // }
+    // xhr.send()
+
+    // Server side to download and return new url
+    var me = this,
+      formData = new FormData(),
+      xhr = new XMLHttpRequest(),
+      id = id,
+      settings = this.settings
+
+    formData.append(settings.uploadFieldName + "_url", url);
+
+    // Append the extra parameters to the formdata
+    if (typeof settings.extraParams === "object") {
+      for (var key in settings.extraParams) {
+        if (settings.extraParams.hasOwnProperty(key)) {
+          formData.append(key, settings.extraParams[key]);
+        }
+      }
+    }
+
+    xhr.open('POST', settings.uploadUrl);
+
+    // Add any available extra headers
+    if (typeof settings.extraHeaders === "object") {
+        for (var header in settings.extraHeaders) {
+            if (settings.extraHeaders.hasOwnProperty(header)) {
+                xhr.setRequestHeader(header, settings.extraHeaders[header]);
+            }
+        }
+    }
+
+    xhr.onload = function() {
+      // If HTTP status is OK or Created
+      if (xhr.status === 200 || xhr.status === 201) {
+        me.onFileUploadResponse(xhr, id);
+      } else {
+        me.onFileUploadError(xhr, id);
+      }
+    };
+    xhr.send(formData);
+    return xhr;
+  }
+
   /**
    * Uploads the blob
    *
@@ -329,7 +389,7 @@
       var string = this.settings.progressText.replace(this.filenameTag, id);
       var lines = this.editor.getValue().split('\n');
         for(var i = 0; i < lines.length; i++) {
-            var ch = lines[i].indexOf(this.lastValue);
+            var ch = lines[i].indexOf(string);
             if(ch != -1)
                 replacements.push({replacement:"", from:{line:i, ch:ch}, to:{line:i, ch:ch + string.length}});
         }
